@@ -1,0 +1,19 @@
+# Зависимости (библиотеки npm)
+node_modules/
+
+# Результат компиляции TypeScript (если вы компилируете в JS)
+# (удалите эту строку, если хотите хранить готовый JS в репозитории)
+dist/
+build/
+*.js
+!*.config.js
+
+# Логи ошибок npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Системные файлы настроек VS Code и операционных систем
+.vscode/
+.DS_Store
+Thumbs.db

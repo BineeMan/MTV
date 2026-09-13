@@ -1,0 +1,21 @@
+mkdir hw1
+cd hw1
+
+npm init -y
+npm install -D typescript tsx @types/node
+npx tsc --init
+
+{
+  "name": "hw1",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "...",
+    "tsx": "...",
+    "typescript": "..."
+  }
+}

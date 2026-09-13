@@ -1,0 +1,16 @@
+{
+  "name": "hw1",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@types/node": "...",
+    "tsx": "...",
+    "typescript": "..."
+  }
+}
