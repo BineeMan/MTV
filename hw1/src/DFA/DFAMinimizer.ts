@@ -95,13 +95,6 @@ export class DFAMinimizer {
         //
         for (const [group, newState] of groupToNewStateMap) {
             const representative: DFAState = group.values().next().value!;
-            // for (const symbol of alphabet) {
-            //     const targetOldState = representative.getNeighborState(symbol);
-            //     if (targetOldState) {
-            //         const targetNewState = oldToNewState.get(targetOldState)!;
-            //         newState.setTransition(symbol, targetNewState)
-            //     }
-            // }
             for (const [symbol, stateTo] of representative.transitions) {
                 newState.setTransition(symbol, oldToNewState.get(stateTo)!);
             }

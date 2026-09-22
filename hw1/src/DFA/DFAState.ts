@@ -77,4 +77,8 @@ export class DFAState {
         }
         return visited;
     }
+
+    public getNodesCount() {
+        return this.getAllStates().size;
+    }
 }

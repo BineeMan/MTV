@@ -4,16 +4,12 @@ import { CharNode, ConcatNode, EpsilonNode, StarNode, UnionNode, type RegexNode 
 // term       → factor | term factor
 // factor     → atom | atom '*' | atom '+' | atom '?'
 // atom       → LETTER | '(' expression ')' | '[' CharacterClass ']' | EscapedChar
-// CharacterClass        → CharacterClass | LETTER '-' LETTER | LETTER 
-
-
+// CharacterClass → ['^'] (CharOrEscapedChar '-' CharOrEscapedChar | CharOrEscapedChar)*
 
 export class RegexParser {
     private pos = 0;
 
-    constructor(private input: string) {
-
-    }
+    constructor(private input: string, private alphabet: string[]) {}
 
     public parse(): RegexNode {
         return this.parseExpression();
@@ -37,7 +33,7 @@ export class RegexParser {
             nodes.push(this.parseFactor());
         }
 
-        if (nodes.length == 0) {
+        if (nodes.length === 0) {
             throw new Error("Empty term");
         }
 
@@ -49,11 +45,9 @@ export class RegexParser {
         let atom = this.parseAtom();
         if (this.match('*')) {
             return new StarNode(atom);
-        }
-        else if (this.match('+')) {
+        } else if (this.match('+')) {
             return new ConcatNode(atom, new StarNode(atom));
-        }
-        else if (this.match('?')) {
+        } else if (this.match('?')) {
             return new UnionNode(atom, new EpsilonNode());
         }
         return atom;
@@ -92,8 +86,14 @@ export class RegexParser {
         return this.nextChar();
     }
 
-    // CharacterClass → CharacterClass | CharOrEscapedChar '-' CharOrEscapedChar | CharOrEscapedChar
+    // CharacterClass → ['^'] (CharOrEscapedChar '-' CharOrEscapedChar | CharOrEscapedChar)*
     private parseCharacterClass(): RegexNode {
+        let isNegated = false;
+
+        if (this.match('^')) {
+            isNegated = true;
+        }
+
         let charSet = new Set<string>();
 
         while (this.hasNext() && !this.check(']')) {
@@ -113,13 +113,28 @@ export class RegexParser {
                 for (let i = startCode; i <= endCode; i++) {
                     charSet.add(String.fromCharCode(i));
                 }
-            }
-            else {
+            } else {
                 charSet.add(charLeft);
             }
         }
+
+        let finalSet = charSet;
+
+        if (isNegated) {
+            finalSet = new Set<string>();
+            for (const char of this.alphabet) {
+                if (!charSet.has(char)) {
+                    finalSet.add(char);
+                }
+            }
+        }
+
+        return this.createUnionNodeFromSet(finalSet);
+    }
+
+    private createUnionNodeFromSet(charSet: Set<string>): RegexNode {
         const chars = Array.from(charSet);
-        if (chars.length == 0) {
+        if (chars.length === 0) {
             throw new Error("Empty character class");
         }
 
@@ -128,7 +143,6 @@ export class RegexParser {
             node = new UnionNode(node, new CharNode(chars[i]!));
         }
         return node;
-        
     }
 
     private hasNext(): boolean {
@@ -140,7 +154,7 @@ export class RegexParser {
     }
 
     private checkNext(char: string): boolean {
-        if (this.pos + 1 > this.input.length) {
+        if (this.pos + 1 >= this.input.length) {
             return false;
         }
         return this.input[this.pos + 1] === char;
