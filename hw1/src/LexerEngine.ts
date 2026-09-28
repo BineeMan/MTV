@@ -14,7 +14,7 @@ export class LexerEngine {
 
     private readonly dfa: DFAState;
 
-    private readonly dfaMinimized: DFAState;
+    public readonly dfaMinimized: DFAState;
 
     private readonly trapStateId: number = -1;
 

@@ -29,11 +29,5 @@ const skipTokens = new Set([TokenType.COMMENT, TokenType.WS])
 const lexer = new LexerEngine(rules, asciiAlphabet, skipTokens);
 const tokens = lexer.tokenize("function add(x) , returns int;");
 console.log(tokens);
-
-// for (let i = 0; i < 256; i++){
-//     console.log(String.fromCodePoint(i));
-// }
-
-//console.log(dfa);
-//console.log("Переходы из старта ДКА:", Array.from(dfa.transitions.keys()));
-//console.log("Переходы 0:", Array.from(dfa.transitions.values()));
+console.log(lexer.dfaMinimized)
+console.log(lexer.exportTransitionTable())
