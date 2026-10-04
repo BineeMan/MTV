@@ -14,8 +14,6 @@ export class DFAMinimizer {
         return groupsByTokenType;
     }
 
-
-
     public static minimize(startState: DFAState, alphabet: Array<string>): DFAState {
         const allStates: Set<DFAState> = startState.getAllStates();
 
@@ -92,7 +90,7 @@ export class DFAMinimizer {
             }
         }
 
-        //
+        // Строим переходы
         for (const [group, newState] of groupToNewStateMap) {
             const representative: DFAState = group.values().next().value!;
             for (const [symbol, stateTo] of representative.transitions) {

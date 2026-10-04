@@ -17,7 +17,6 @@ export class DFAState {
         this.id = DFAState.idCounter++;
         this.nfaStates = nfaStates;
         this.analyzeAccepting();
-
     }
 
     private analyzeAccepting(): void {

@@ -1,0 +1,30 @@
+{
+  "name": "mtv",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "lexer": "tsx lexer/src/index.ts",
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.1",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "description": "MTV",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BineeMan/MTV.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/BineeMan/MTV/issues"
+  },
+  "homepage": "https://github.com/BineeMan/MTV#readme"
+}
