@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "lexer": "tsx lexer/src/index.ts",
+    "parser": "tsx parser/src/index.ts",
     "build": "tsc",
     "check": "tsc --noEmit",
     "lint": "eslint .",
