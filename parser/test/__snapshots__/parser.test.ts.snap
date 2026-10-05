@@ -1,0 +1,97 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Parser - Positive Scenarios > 1.6 Эталонное сравнение AST со Snapshot (Снимок) 1`] = `
+{
+  "formulas": [],
+  "functions": [
+    {
+      "body": {
+        "position": 40,
+        "statements": [
+          {
+            "condition": {
+              "left": {
+                "name": "x",
+                "position": 62,
+                "type": "VarRef",
+              },
+              "operator": "<",
+              "position": 62,
+              "right": {
+                "position": 66,
+                "type": "Number",
+                "value": 0,
+              },
+              "type": "Comparison",
+            },
+            "elseBranch": {
+              "position": 122,
+              "statements": [
+                {
+                  "position": 144,
+                  "targets": [
+                    "r",
+                  ],
+                  "type": "AssignmentStmt",
+                  "value": {
+                    "name": "x",
+                    "position": 148,
+                    "type": "VarRef",
+                  },
+                },
+              ],
+              "type": "BlockStmt",
+            },
+            "position": 58,
+            "thenBranch": {
+              "position": 69,
+              "statements": [
+                {
+                  "position": 91,
+                  "targets": [
+                    "r",
+                  ],
+                  "type": "AssignmentStmt",
+                  "value": {
+                    "operand": {
+                      "name": "x",
+                      "position": 96,
+                      "type": "VarRef",
+                    },
+                    "operator": "-",
+                    "position": 95,
+                    "type": "UnaryExpr",
+                  },
+                },
+              ],
+              "type": "BlockStmt",
+            },
+            "type": "IfStmt",
+          },
+        ],
+        "type": "BlockStmt",
+      },
+      "ensures": undefined,
+      "name": "abs",
+      "params": [
+        {
+          "name": "x",
+          "varType": "int",
+        },
+      ],
+      "position": 13,
+      "requires": undefined,
+      "returns": [
+        {
+          "name": "r",
+          "varType": "int",
+        },
+      ],
+      "type": "FunctionDecl",
+      "uses": [],
+    },
+  ],
+  "position": 13,
+  "type": "Module",
+}
+`;

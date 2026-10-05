@@ -26,8 +26,8 @@ export class LexerEngine {
         this.nfa = this.buildNfa();
         this.dfa = SubsetConstruction.convert(this.nfa, alphabet);
         this.dfaMinimized = DFAMinimizer.minimize(this.dfa, alphabet);
-        console.log("DfaSize = " + this.dfa.getNodesCount());
-        console.log("DfaMinimizedSize = " + this.dfaMinimized.getNodesCount());
+        //console.log("DfaSize = " + this.dfa.getNodesCount());
+        //console.log("DfaMinimizedSize = " + this.dfaMinimized.getNodesCount());
     }
 
     private buildNfa() {

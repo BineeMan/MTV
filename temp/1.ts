@@ -1,9 +1,29 @@
+import {
+    Token,
+    TokenType,
+    VarType,
+    VarDef,
+    LocalVarDef,
+    ExpressionNode,
+    LogicNode,
+    StatementNode,
+    FunctionDeclNode,
+    FormulaDeclNode,
+    ModuleNode,
+    AssignmentStmtNode,
+    IfStmtNode,
+    WhileStmtNode,
+    BlockStmtNode,
+    AssertStmtNode,
+    AssumeStmtNode,
+    ParseError
+} from "./ast";
+
 export class Parser {
     private tokens: Token[];
     private current: number = 0;
 
     constructor(tokens: Token[]) {
-        // Пропускаем мусорные токены (пробелы и комментарии)
         this.tokens = tokens.filter(
             (t) => t.type !== TokenType.WS && t.type !== TokenType.COMMENT
         );
@@ -26,49 +46,22 @@ export class Parser {
     }
 
     // ==========================================
-    // Declarations (Функции и Формулы)
+    // 1. Declarations (Объявления)
     // ==========================================
 
-    private isFormulaDecl(): boolean {
-        // Смотрим вперед: если после name(...) идет "=>", это формула
-        let lookahead = this.current;
-        if (this.tokens[lookahead]?.type !== TokenType.IDENT) return false;
-        lookahead++;
-        if (this.tokens[lookahead]?.value !== "(") return false;
-        
-        let depth = 1;
-        lookahead++;
-        while (lookahead < this.tokens.length && depth > 0) {
-            if (this.tokens[lookahead].value === "(") depth++;
-            if (this.tokens[lookahead].value === ")") depth--;
-            lookahead++;
-        }
-        return this.tokens[lookahead]?.value === "=>";
-    }
-
     private parseFunctionDecl(): FunctionDeclNode {
-        const nameToken = this.expectIdent("Expected function name");
-        this.expectOp("(");
-        const params = this.parseVarDefList(")");
+        const nameToken = this.expect(TokenType.IDENT, undefined, "Expected function name");
         
-        let requires: LogicNode | undefined;
-        if (this.matchKw("requires")) {
-            requires = this.parseLogic();
-        }
+        this.expect(TokenType.OPERATOR, "(");
+        const params = this.parseVarDefList(")");
 
-        this.expectKw("returns");
+        const requires = this.parseRequiresClause();
+
+        this.expect(TokenType.KEYWORD, "returns");
         const returns = this.parseVarDefList();
 
-        let ensures: LogicNode | undefined;
-        if (this.matchKw("ensures")) {
-            ensures = this.parseLogic();
-        }
-
-        const uses: LocalVarDef[] = [];
-        if (this.matchKw("uses")) {
-            uses.push(...this.parseLocalVarDefList());
-        }
-
+        const ensures = this.parseEnsuresClause();
+        const uses = this.parseUsesClause();
         const body = this.parseStatement();
 
         return {
@@ -85,10 +78,11 @@ export class Parser {
     }
 
     private parseFormulaDecl(): FormulaDeclNode {
-        const nameToken = this.expectIdent("Expected formula name");
-        this.expectOp("(");
+        const nameToken = this.expect(TokenType.IDENT, undefined, "Expected formula name");
+        
+        this.expect(TokenType.OPERATOR, "(");
         const params = this.parseVarDefList(")");
-        this.expectOp("=>");
+        this.expect(TokenType.OPERATOR, "=>");
         const body = this.parseLogic();
 
         return {
@@ -100,16 +94,95 @@ export class Parser {
         };
     }
 
+    private parseRequiresClause(): LogicNode | undefined {
+        if (this.match(TokenType.KEYWORD, "requires")) {
+            return this.parseLogic();
+        }
+        return undefined;
+    }
+
+    private parseEnsuresClause(): LogicNode | undefined {
+        if (this.match(TokenType.KEYWORD, "ensures")) {
+            return this.parseLogic();
+        }
+        return undefined;
+    }
+
+    private parseUsesClause(): LocalVarDef[] {
+        if (this.match(TokenType.KEYWORD, "uses")) {
+            return this.parseLocalVarDefList();
+        }
+        return [];
+    }
+
     // ==========================================
-    // Statements (Операторы)
+    // 2. Variable Definitions (Переменные и Типы)
+    // ==========================================
+
+    private parseVarDefList(closeOp?: string): VarDef[] {
+        const varDefList: VarDef[] = [];
+
+        if (closeOp && this.check(TokenType.OPERATOR, closeOp)) {
+            this.expect(TokenType.OPERATOR, closeOp);
+            return varDefList;
+        }
+
+        do {
+            varDefList.push(this.parseVarDef());
+        } while (this.match(TokenType.OPERATOR, ","));
+
+        if (closeOp) {
+            this.expect(TokenType.OPERATOR, closeOp);
+        }
+
+        return varDefList;
+    }
+
+    private parseVarDef(): VarDef {
+        const name = this.expect(TokenType.IDENT, undefined, "Expected var name");
+        this.expect(TokenType.OPERATOR, ":");
+        const varType: VarType = this.parseVarType();
+        return { name: name.value, varType };
+    }
+
+    private parseLocalVarDefList(): LocalVarDef[] {
+        const list: LocalVarDef[] = [];
+        do {
+            list.push(this.parseLocalVarDef());
+        } while (this.match(TokenType.OPERATOR, ","));
+        return list;
+    }
+
+    private parseLocalVarDef(): LocalVarDef {
+        const name = this.expect(TokenType.IDENT, undefined, "Expected local var name").value;
+        let varType: VarType | undefined;
+
+        if (this.match(TokenType.OPERATOR, ":")) {
+            varType = this.parseVarType();
+        }
+
+        return { name, varType };
+    }
+
+    private parseVarType(): VarType {
+        this.expect(TokenType.KEYWORD, "int");
+        if (this.match(TokenType.OPERATOR, "[")) {
+            this.expect(TokenType.OPERATOR, "]");
+            return "int[]";
+        }
+        return "int";
+    }
+
+    // ==========================================
+    // 3. Statements (Операторы)
     // ==========================================
 
     private parseStatement(): StatementNode {
-        if (this.matchKw("if")) return this.parseIfStmt();
-        if (this.matchKw("while")) return this.parseWhileStmt();
-        if (this.matchKw("assert")) return this.parseAssertStmt();
-        if (this.matchKw("assume")) return this.parseAssumeStmt();
-        if (this.checkOp("{")) return this.parseBlockStmt();
+        if (this.match(TokenType.KEYWORD, "if")) return this.parseIfStmt();
+        if (this.match(TokenType.KEYWORD, "while")) return this.parseWhileStmt();
+        if (this.match(TokenType.KEYWORD, "assert")) return this.parseAssertStmt();
+        if (this.match(TokenType.KEYWORD, "assume")) return this.parseAssumeStmt();
+        if (this.check(TokenType.OPERATOR, "{")) return this.parseBlockStmt();
 
         return this.parseAssignmentStmt();
     }
@@ -117,64 +190,23 @@ export class Parser {
     private parseAssignmentStmt(): AssignmentStmtNode {
         const startToken = this.peek();
 
-        // 1. Проверяем присваивание массиву: a[i] = v; или a[i][j] = v;
-        if (this.check(TokenType.IDENT) && this.lookaheadOp(1, "[")) {
-            const arrayName = this.advance().value;
-            const indices: ExpressionNode[] = [];
-
-            while (this.matchOp("[")) {
-                indices.push(this.parseExpr());
-                this.expectOp("]");
-            }
-
-            this.expectOp("=");
-            const valueExpr = this.parseExpr();
-            this.expectOp(";");
-
-            // Обессахаривание: a[i][j] = v -> a = set(a, i, set(a[i], j, v))
-            let desugaredValue = valueExpr;
-            for (let k = indices.length - 1; k >= 0; k--) {
-                const indexExpr = indices[k];
-                // Для вложенных уровней берем a[i1]...[ik-1] как целевой массив
-                let targetArrayExpr: ExpressionNode = {
-                    type: "VarRef",
-                    name: arrayName,
-                    position: startToken.position,
-                };
-                for (let m = 0; m < k; m++) {
-                    targetArrayExpr = {
-                        type: "ArrayAccess",
-                        array: targetArrayExpr,
-                        index: indices[m],
-                        position: startToken.position,
-                    };
-                }
-
-                desugaredValue = {
-                    type: "FunctionCall",
-                    name: "set",
-                    args: [targetArrayExpr, indexExpr, desugaredValue],
-                    position: startToken.position,
-                };
-            }
-
-            return {
-                type: "AssignmentStmt",
-                targets: [arrayName],
-                value: desugaredValue,
-                position: startToken.position,
-            };
+        // Доступ к массиву: a[i] = v; или a[i][j] = v;
+        if (this.check(TokenType.IDENT) && this.lookahead(1, TokenType.OPERATOR, "[")) {
+            return this.parseArrayAssignmentStmt(startToken);
         }
 
-        // 2. Обычное присваивание: x = expr; или множественный возврат: x, y = foo();
-        const targets: string[] = [this.expectIdent().value];
-        while (this.matchOp(",")) {
-            targets.push(this.expectIdent().value);
+        // Обычное присваивание: x = v; или x, y = fn();
+        const targets: string[] = [
+            this.expect(TokenType.IDENT, undefined, "Expected variable name").value
+        ];
+
+        while (this.match(TokenType.OPERATOR, ",")) {
+            targets.push(this.expect(TokenType.IDENT, undefined, "Expected variable name").value);
         }
 
-        this.expectOp("=");
+        this.expect(TokenType.OPERATOR, "=");
         const value = this.parseExpr();
-        this.expectOp(";");
+        this.expect(TokenType.OPERATOR, ";");
 
         return {
             type: "AssignmentStmt",
@@ -184,15 +216,63 @@ export class Parser {
         };
     }
 
+    private parseArrayAssignmentStmt(startToken: Token): AssignmentStmtNode {
+        const arrayName = this.advance().value;
+        const indices: ExpressionNode[] = [];
+
+        while (this.match(TokenType.OPERATOR, "[")) {
+            indices.push(this.parseExpr());
+            this.expect(TokenType.OPERATOR, "]");
+        }
+
+        this.expect(TokenType.OPERATOR, "=");
+        const valueExpr = this.parseExpr();
+        this.expect(TokenType.OPERATOR, ";");
+
+        // Обессахаривание: a[i][j] = v -> a = set(a, i, set(a[i], j, v))
+        let desugaredValue = valueExpr;
+        for (let k = indices.length - 1; k >= 0; k--) {
+            let targetArrayExpr: ExpressionNode = {
+                type: "VarRef",
+                name: arrayName,
+                position: startToken.position,
+            };
+
+            for (let m = 0; m < k; m++) {
+                targetArrayExpr = {
+                    type: "ArrayAccess",
+                    array: targetArrayExpr,
+                    index: indices[m],
+                    position: startToken.position,
+                };
+            }
+
+            desugaredValue = {
+                type: "FunctionCall",
+                name: "set",
+                args: [targetArrayExpr, indices[k], desugaredValue],
+                position: startToken.position,
+            };
+        }
+
+        return {
+            type: "AssignmentStmt",
+            targets: [arrayName],
+            value: desugaredValue,
+            position: startToken.position,
+        };
+    }
+
     private parseIfStmt(): IfStmtNode {
         const pos = this.previous().position;
-        this.expectOp("(");
+        this.expect(TokenType.OPERATOR, "(");
         const condition = this.parseLogic();
-        this.expectOp(")");
+        this.expect(TokenType.OPERATOR, ")");
+        
         const thenBranch = this.parseStatement();
-
         let elseBranch: StatementNode | undefined;
-        if (this.matchKw("else")) {
+
+        if (this.match(TokenType.KEYWORD, "else")) {
             elseBranch = this.parseStatement();
         }
 
@@ -201,12 +281,12 @@ export class Parser {
 
     private parseWhileStmt(): WhileStmtNode {
         const pos = this.previous().position;
-        this.expectOp("(");
+        this.expect(TokenType.OPERATOR, "(");
         const condition = this.parseLogic();
-        this.expectOp(")");
+        this.expect(TokenType.OPERATOR, ")");
 
         let invariant: LogicNode | undefined;
-        if (this.matchKw("invariant")) {
+        if (this.match(TokenType.KEYWORD, "invariant")) {
             invariant = this.parseLogic();
         }
 
@@ -216,33 +296,33 @@ export class Parser {
     }
 
     private parseBlockStmt(): BlockStmtNode {
-        const pos = this.expectOp("{").position;
+        const pos = this.expect(TokenType.OPERATOR, "{").position;
         const statements: StatementNode[] = [];
 
-        while (!this.checkOp("}") && !this.isAtEnd()) {
+        while (!this.check(TokenType.OPERATOR, "}") && !this.isAtEnd()) {
             statements.push(this.parseStatement());
         }
 
-        this.expectOp("}");
+        this.expect(TokenType.OPERATOR, "}");
         return { type: "BlockStmt", statements, position: pos };
     }
 
     private parseAssertStmt(): AssertStmtNode {
         const pos = this.previous().position;
         const predicate = this.parseLogic();
-        this.expectOp(";");
+        this.expect(TokenType.OPERATOR, ";");
         return { type: "AssertStmt", predicate, position: pos };
     }
 
     private parseAssumeStmt(): AssumeStmtNode {
         const pos = this.previous().position;
         const predicate = this.parseLogic();
-        this.expectOp(";");
+        this.expect(TokenType.OPERATOR, ";");
         return { type: "AssumeStmt", predicate, position: pos };
     }
 
     // ==========================================
-    // Logic & Predicates (Логические выражения)
+    // 4. Logic & Predicates (Логические выражения)
     // ==========================================
 
     private parseLogic(): LogicNode {
@@ -251,7 +331,8 @@ export class Parser {
 
     private parseImplication(): LogicNode {
         let left = this.parseOr();
-        if (this.matchOp("->")) {
+
+        if (this.match(TokenType.OPERATOR, "->")) {
             const right = this.parseImplication(); // Правая ассоциативность
             return {
                 type: "BinaryLogic",
@@ -261,12 +342,14 @@ export class Parser {
                 position: left.position,
             };
         }
+
         return left;
     }
 
     private parseOr(): LogicNode {
         let left = this.parseAnd();
-        while (this.matchKw("or") || this.matchOp("||")) {
+
+        while (this.match(TokenType.OPERATOR, "or")) {
             const right = this.parseAnd();
             left = {
                 type: "BinaryLogic",
@@ -276,12 +359,14 @@ export class Parser {
                 position: left.position,
             };
         }
+
         return left;
     }
 
     private parseAnd(): LogicNode {
         let left = this.parseNot();
-        while (this.matchKw("and") || this.matchOp("&&")) {
+
+        while (this.match(TokenType.OPERATOR, "and")) {
             const right = this.parseNot();
             left = {
                 type: "BinaryLogic",
@@ -291,73 +376,54 @@ export class Parser {
                 position: left.position,
             };
         }
+
         return left;
     }
 
     private parseNot(): LogicNode {
-        if (this.matchKw("not") || this.matchOp("!")) {
+        if (this.match(TokenType.OPERATOR, "not")) {
             const pos = this.previous().position;
             const operand = this.parseNot();
             return { type: "UnaryLogic", operator: "not", operand, position: pos };
         }
+
         return this.parsePrimaryLogic();
     }
 
     private parsePrimaryLogic(): LogicNode {
         const token = this.peek();
 
-        // Булевы константы
-        if (this.matchKw("true") || (token.type === TokenType.IDENT && token.value === "true")) {
-            this.advance();
+        if (this.match(TokenType.KEYWORD, "true")) {
             return { type: "BooleanLiteral", value: true, position: token.position };
         }
-        if (this.matchKw("false") || (token.type === TokenType.IDENT && token.value === "false")) {
-            this.advance();
+        if (this.match(TokenType.KEYWORD, "false")) {
             return { type: "BooleanLiteral", value: false, position: token.position };
         }
 
-        // Кванторы (forall / exists)
-        if (this.matchKw("forall") || this.matchKw("exists")) {
-            const quantifier = this.previous().value as "forall" | "exists";
-            this.expectOp("(");
-            const varName = this.expectIdent().value;
-            this.expectOp(":");
-            const varType = this.parseVarType();
-            this.expectOp("|");
-            const predicate = this.parseLogic();
-            this.expectOp(")");
-            return {
-                type: "Quantifier",
-                quantifier,
-                variable: { name: varName, varType },
-                predicate,
-                position: token.position,
-            };
+        if (this.check(TokenType.KEYWORD, "forall") || this.check(TokenType.KEYWORD, "exists")) {
+            return this.parseQuantifier();
         }
 
-        // Скобки в логике
-        if (this.matchOp("(")) {
+        if (this.match(TokenType.OPERATOR, "(")) {
             const expr = this.parseLogic();
-            this.expectOp(")");
+            this.expect(TokenType.OPERATOR, ")");
             return expr;
         }
 
-        // Вызов формулы или сравнение выражений
         const expr = this.parseExpr();
 
-        if (this.isComparisonOp(this.peek())) {
-            const op = this.advance().value as "==" | "!=" | ">=" | "<=" | ">" | "<";
+        if (this.isComparisonOp(this.peek().value)) {
+            const opToken = this.advance();
             const right = this.parseExpr();
             return {
                 type: "Comparison",
-                operator: op,
+                operator: opToken.value as "==" | "!=" | ">=" | "<=" | ">" | "<",
                 left: expr,
                 right,
                 position: expr.position,
             };
         }
 
-        // Если это просто вызов функции/формулы как предикат
         if (expr.type === "FunctionCall") {
             return {
                 type: "FormulaRef",
@@ -367,11 +433,32 @@ export class Parser {
             };
         }
 
-        throw new ParseError(`Expected comparison or predicate`, token.position);
+        throw new ParseError(`Expected predicate or comparison at pos ${token.position}`, token.position);
+    }
+
+    private parseQuantifier(): LogicNode {
+        const token = this.advance();
+        const quantifier = token.value as "forall" | "exists";
+
+        this.expect(TokenType.OPERATOR, "(");
+        const varName = this.expect(TokenType.IDENT, undefined, "Expected quantifier variable").value;
+        this.expect(TokenType.OPERATOR, ":");
+        const varType = this.parseVarType();
+        this.expect(TokenType.OPERATOR, "|");
+        const predicate = this.parseLogic();
+        this.expect(TokenType.OPERATOR, ")");
+
+        return {
+            type: "Quantifier",
+            quantifier,
+            variable: { name: varName, varType },
+            predicate,
+            position: token.position,
+        };
     }
 
     // ==========================================
-    // Expressions (Арифметика)
+    // 5. Arithmetic Expressions (Арифметика)
     // ==========================================
 
     private parseExpr(): ExpressionNode {
@@ -380,7 +467,8 @@ export class Parser {
 
     private parseAdditive(): ExpressionNode {
         let left = this.parseMultiplicative();
-        while (this.checkOp("+") || this.checkOp("-")) {
+
+        while (this.check(TokenType.OPERATOR, "+") || this.check(TokenType.OPERATOR, "-")) {
             const op = this.advance().value as "+" | "-";
             const right = this.parseMultiplicative();
             left = {
@@ -391,12 +479,14 @@ export class Parser {
                 position: left.position,
             };
         }
+
         return left;
     }
 
     private parseMultiplicative(): ExpressionNode {
         let left = this.parseUnary();
-        while (this.checkOp("*") || this.checkOp("/")) {
+
+        while (this.check(TokenType.OPERATOR, "*") || this.check(TokenType.OPERATOR, "/")) {
             const op = this.advance().value as "*" | "/";
             const right = this.parseUnary();
             left = {
@@ -407,58 +497,57 @@ export class Parser {
                 position: left.position,
             };
         }
+
         return left;
     }
 
     private parseUnary(): ExpressionNode {
-        if (this.matchOp("-")) {
+        if (this.match(TokenType.OPERATOR, "-")) {
             const pos = this.previous().position;
             const operand = this.parseUnary();
             return { type: "UnaryExpr", operator: "-", operand, position: pos };
         }
+
         return this.parsePrimaryExpr();
     }
 
     private parsePrimaryExpr(): ExpressionNode {
         const token = this.peek();
 
-        // Число
         if (this.match(TokenType.INT)) {
             return { type: "Number", value: parseInt(token.value, 10), position: token.position };
         }
 
-        // Идентификатор (Переменная, Вызов функции или Массив)
         if (this.check(TokenType.IDENT)) {
             const ident = this.advance();
 
-            // Вызов функции: foo(a, b)
-            if (this.matchOp("(")) {
+            // Вызов функции: foo(...)
+            if (this.match(TokenType.OPERATOR, "(")) {
                 const args: ExpressionNode[] = [];
-                if (!this.checkOp(")")) {
+                if (!this.check(TokenType.OPERATOR, ")")) {
                     do {
                         args.push(this.parseExpr());
-                    } while (this.matchOp(","));
+                    } while (this.match(TokenType.OPERATOR, ","));
                 }
-                this.expectOp(")");
+                this.expect(TokenType.OPERATOR, ")");
                 return { type: "FunctionCall", name: ident.value, args, position: ident.position };
             }
 
+            // Переменная или доступ к массиву: a или a[i]
             let expr: ExpressionNode = { type: "VarRef", name: ident.value, position: ident.position };
 
-            // Доступ к массиву: a[i][j]
-            while (this.matchOp("[")) {
+            while (this.match(TokenType.OPERATOR, "[")) {
                 const index = this.parseExpr();
-                this.expectOp("]");
+                this.expect(TokenType.OPERATOR, "]");
                 expr = { type: "ArrayAccess", array: expr, index, position: ident.position };
             }
 
             return expr;
         }
 
-        // Скобки: (expr)
-        if (this.matchOp("(")) {
+        if (this.match(TokenType.OPERATOR, "(")) {
             const expr = this.parseExpr();
-            this.expectOp(")");
+            this.expect(TokenType.OPERATOR, ")");
             return expr;
         }
 
@@ -466,122 +555,80 @@ export class Parser {
     }
 
     // ==========================================
-    // Helpers (Служебные методы)
+    // 6. Universal Smart Helpers (Универсальные хелперы)
     // ==========================================
 
-    private parseVarDefList(closeToken?: string): VarDef[] {
-        const list: VarDef[] = [];
-        if (closeToken && this.checkOp(closeToken)) {
-            this.expectOp(closeToken);
-            return list;
-        }
-
-        do {
-            const name = this.expectIdent().value;
-            this.expectOp(":");
-            const varType = this.parseVarType();
-            list.push({ name, varType });
-        } while (this.matchOp(","));
-
-        if (closeToken) this.expectOp(closeToken);
-        return list;
+    private check(type: TokenType, val?: string): boolean {
+        if (this.isAtEnd()) return false;
+        const token = this.peek();
+        if (token.type !== type) return false;
+        if (val !== undefined && token.value !== val) return false;
+        return true;
     }
 
-    private parseLocalVarDefList(): LocalVarDef[] {
-        const list: LocalVarDef[] = [];
-        do {
-            const name = this.expectIdent().value;
-            let varType: VarType | undefined;
-            if (this.matchOp(":")) {
-                varType = this.parseVarType();
-            }
-            list.push({ name, varType });
-        } while (this.matchOp(","));
-        return list;
+    private match(type: TokenType, val?: string): boolean {
+        if (this.check(type, val)) {
+            this.advance();
+            return true;
+        }
+        return false;
     }
 
-    private parseVarType(): VarType {
-        this.expectKw("int");
-        if (this.matchOp("[")) {
-            this.expectOp("]");
-            return "int[]";
+    private expect(type: TokenType, val?: string, msg?: string): Token {
+        if (this.check(type, val)) return this.advance();
+
+        const expected = val ? `'${val}' (${type})` : type;
+        const got = `'${this.peek().value}' (${this.peek().type})`;
+        throw new ParseError(
+            msg || `Expected ${expected}, got ${got}`,
+            this.peek().position
+        );
+    }
+
+    private lookahead(offset: number, type: TokenType, val?: string): boolean {
+        const idx = this.current + offset;
+        if (idx >= this.tokens.length) return false;
+        const token = this.tokens[idx];
+        if (token.type !== type) return false;
+        if (val !== undefined && token.value !== val) return false;
+        return true;
+    }
+
+    private isFormulaDecl(): boolean {
+        let lookahead = this.current;
+        if (this.tokens[lookahead]?.type !== TokenType.IDENT) return false;
+        lookahead++;
+        if (this.tokens[lookahead]?.value !== "(") return false;
+
+        let depth = 1;
+        lookahead++;
+        while (lookahead < this.tokens.length && depth > 0) {
+            if (this.tokens[lookahead].value === "(") depth++;
+            if (this.tokens[lookahead].value === ")") depth--;
+            lookahead++;
         }
-        return "int";
+
+        return this.tokens[lookahead]?.value === "=>";
+    }
+
+    private isComparisonOp(val: string): boolean {
+        return ["==", "!=", ">=", "<=", ">", "<"].includes(val);
     }
 
     private peek(): Token {
         return this.tokens[this.current] || { type: TokenType.KEYWORD, value: "EOF", position: -1 };
     }
 
+    private previous(): Token {
+        return this.tokens[this.current - 1];
+    }
+
     private advance(): Token {
         if (!this.isAtEnd()) this.current++;
-        return this.tokens[this.current - 1];
+        return this.previous();
     }
 
     private isAtEnd(): boolean {
         return this.current >= this.tokens.length;
-    }
-
-    private check(type: TokenType): boolean {
-        return !this.isAtEnd() && this.peek().type === type;
-    }
-
-    private match(type: TokenType): boolean {
-        if (this.check(type)) {
-            this.advance();
-            return true;
-        }
-        return false;
-    }
-
-    private checkKw(value: string): boolean {
-        return !this.isAtEnd() && this.peek().type === TokenType.KEYWORD && this.peek().value === value;
-    }
-
-    private matchKw(value: string): boolean {
-        if (this.checkKw(value)) {
-            this.advance();
-            return true;
-        }
-        return false;
-    }
-
-    private checkOp(value: string): boolean {
-        return !this.isAtEnd() && this.peek().type === TokenType.OPERATOR && this.peek().value === value;
-    }
-
-    private matchOp(value: string): boolean {
-        if (this.checkOp(value)) {
-            this.advance();
-            return true;
-        }
-        return false;
-    }
-
-    private lookaheadOp(offset: number, value: string): boolean {
-        const idx = this.current + offset;
-        return idx < this.tokens.length && this.tokens[idx].type === TokenType.OPERATOR && this.tokens[idx].value === value;
-    }
-
-    private expectKw(value: string): Token {
-        if (this.checkKw(value)) return this.advance();
-        throw new ParseError(`Expected keyword '${value}', got '${this.peek().value}'`, this.peek().position);
-    }
-
-    private expectOp(value: string): Token {
-        if (this.checkOp(value)) return this.advance();
-        throw new ParseError(`Expected operator '${value}', got '${this.peek().value}'`, this.peek().position);
-    }
-
-    private expectIdent(msg = "Expected identifier"): Token {
-        if (this.check(TokenType.IDENT)) return this.advance();
-        throw new ParseError(`${msg}, got '${this.peek().value}'`, this.peek().position);
-    }
-
-    private isComparisonOp(token: Token): boolean {
-        return (
-            token.type === TokenType.OPERATOR &&
-            ["==", "!=", ">=", "<=", ">", "<"].includes(token.value)
-        );
     }
 }

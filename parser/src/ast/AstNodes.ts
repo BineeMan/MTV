@@ -1,19 +1,17 @@
 export interface Position {
-    line: number;
-    column: number;
-    offset?: number;
+    position: number;
 }
 
 export type VarType = 'int' | 'int[]';
 
 export interface VarDef {
     name: string;
-    varType: VarType;
+    varType: VarType | undefined;
 }
 
 export interface LocalVarDef {
     name: string;
-    varType?: VarType; // тип опционален
+    varType?: VarType | undefined; // тип опционален
 }
 
 // --- Expressions ---
@@ -121,13 +119,13 @@ export interface IfStmtNode extends Position {
     type: "IfStmt";
     condition: LogicNode;
     thenBranch: StatementNode;
-    elseBranch?: StatementNode;
+    elseBranch?: StatementNode | undefined;
 }
 
 export interface WhileStmtNode extends Position {
     type: "WhileStmt";
     condition: LogicNode;
-    invariant?: LogicNode;
+    invariant?: LogicNode | undefined;
     body: StatementNode;
 }
 
@@ -161,8 +159,8 @@ export interface FunctionDeclNode extends Position {
     name: string;
     params: VarDef[];
     returns: VarDef[];
-    requires?: LogicNode;
-    ensures?: LogicNode;
+    requires?: LogicNode | undefined;
+    ensures?: LogicNode | undefined;
     uses: LocalVarDef[];
     body: StatementNode;
 }

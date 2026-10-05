@@ -8,7 +8,9 @@
     "build": "tsc",
     "check": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest"
+    "test": "vitest",
+    "test_lexer": "vitest run lexer",
+    "test_parser": "vitest run parser"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",
