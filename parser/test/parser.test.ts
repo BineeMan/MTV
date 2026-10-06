@@ -1,13 +1,10 @@
 import { describe, it, expect } from "vitest";
 
 import { LexerEngine } from "../../lexer/src/LexerEngine.js";
-import { Parser, type AssignmentStmtNode, type FunctionCallNode } from "../src/ast/FunnyParser.js";
+import { FunnyParser, type AssignmentStmtNode, type FunctionCallNode } from "../src/Ast/FunnyParser.js";
 import { TokenType } from "../../lexer/src/Types/TokenType.js";
 import { ParseError } from "../src/Errors/Errors.js";
 
-// ==========================================
-// Настройка Лексера для тестов
-// ==========================================
 const asciiAlphabet = Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i))
     .concat(["\t", "\r", "\n"]);
 
@@ -32,13 +29,12 @@ const lexer = new LexerEngine(rules, asciiAlphabet, skipTokens);
 // Хелпер для прогона исходника через Лексер + Парсер
 function parse(source: string) {
     const tokens = lexer.tokenize(source);
-    const parser = new Parser(tokens);
+    const parser = new FunnyParser(tokens);
     return parser.parse();
 }
 
-// ==========================================
-// 1. ПОЗИТИВНЫЕ ТЕСТЫ (Valid Programs)
-// ==========================================
+
+// 1. ПОЗИТИВНЫЕ ТЕСТЫ
 describe("Parser - Positive Scenarios", () => {
 
     it("1.1 Минимальная корректная функция без параметров", () => {
@@ -143,9 +139,7 @@ describe("Parser - Positive Scenarios", () => {
     });
 });
 
-// ==========================================
-// 2. НЕГАТИВНЫЕ ТЕСТЫ (Negative Scenarios)
-// ==========================================
+// 2. НЕГАТИВНЫЕ ТЕСТЫ
 describe("Parser - Negative Scenarios & Edge Cases", () => {
 
     it("2.1 Пустой ввод (должен возвращать пустой модуль, а не падать)", () => {
@@ -191,13 +185,11 @@ describe("Parser - Negative Scenarios & Edge Cases", () => {
         expect(() => parse(code)).toThrowError(ParseError);
     });
 
-    // ==========================================
-    // 3. ПРОВЕРКА НА ОТСУТСТВИЕ ЗАЦИКЛИВАНИЙ (Safety & Hangs)
-    // ==========================================
+    // 3. ПРОВЕРКА НА ОТСУТСТВИЕ ЗАЦИКЛИВАНИЙ
     it("3.1 Непредвиденный конец файла (EOF) во время цикла while не вызывает бесконечный цикл", () => {
         const code = `main() returns r: int { while (true) {`;
 
-        // Тест упадет по таймауту, если парсер зациклится в `while (!isAtEnd())`
+        // Тест упадет по таймауту, если парсер зациклится
         expect(() => parse(code)).toThrowError(ParseError);
     }, 1000); // Таймаут 1 секунда
 

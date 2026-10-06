@@ -1,6 +1,6 @@
 import { LexerEngine } from "../../lexer/src/LexerEngine.js";
 import { TokenType } from "../../lexer/src/Types/TokenType.js";
-import { Parser } from "./ast/FunnyParser.js";
+import { FunnyParser } from "./Ast/FunnyParser.js";
 import { inspect } from "node:util";
 
 const asciiAlphabet = Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i))
@@ -28,7 +28,7 @@ const lexer = new LexerEngine(rules, asciiAlphabet, skipTokens);
 const code = "main() returns r:int {r = 1 + 2 * 3;}";
 const tokens = lexer.tokenize(code);
 
-const funnyParser = new Parser(tokens)
+const funnyParser = new FunnyParser(tokens)
 
 const ast = funnyParser.parse();
 

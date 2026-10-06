@@ -2,13 +2,10 @@ import type { Token } from "../../../lexer/src/Types/Token.js";
 import { TokenType } from "../../../lexer/src/Types/TokenType.js";
 import { ParseError } from "../Errors/Errors.js";
 import type {
-    // базовые
     Position,
     VarType,
     VarDef,
     LocalVarDef,
-
-    // выражения
     NumberNode,
     VarRefNode,
     ArrayAccessNode,
@@ -16,17 +13,7 @@ import type {
     BinaryExprNode,
     UnaryExprNode,
     ExpressionNode,
-
-    // условия/предикаты
-    BooleanLiteralNode,
-    ComparisonNode,
-    BinaryLogicNode,
-    UnaryLogicNode,
-    QuantifierNode,
-    FormulaRefNode,
     LogicNode,
-
-    // операторы
     AssignmentStmtNode,
     IfStmtNode,
     WhileStmtNode,
@@ -34,19 +21,15 @@ import type {
     AssertStmtNode,
     AssumeStmtNode,
     StatementNode,
-
-    // top-level
     FunctionDeclNode,
     FormulaDeclNode,
     ModuleNode,
-
-    // объединение всех узлов
     ASTNode,
 } from "./AstNodes.js";
 
 export type * from "./AstNodes.js";
 
-export class Parser {
+export class FunnyParser {
     private current: number = 0;
 
     constructor(private tokens: Token[]) {
@@ -68,10 +51,7 @@ export class Parser {
         return { type: "Module", functions, formulas, position: startPos };
     }
 
-    // ==========================================
     // 1. Declarations
-    // ==========================================
-
     private parseFunctionDecl(): FunctionDeclNode {
         const nameToken = this.expect(TokenType.IDENT, undefined, "Expected function name");
 
@@ -138,10 +118,7 @@ export class Parser {
         return [];
     }
 
-    // ==========================================
-    // 2. Variable Definitions (Переменные и Типы)
-    // ==========================================
-
+    // 2. Variable Definitions
     private parseVarDefList(closeOp?: string): VarDef[] {
         const varDefList: VarDef[] = [];
 
@@ -196,10 +173,7 @@ export class Parser {
         return "int";
     }
 
-    // ==========================================
-    // 3. Statements (Операторы)
-    // ==========================================
-
+    // 3. Statements
     private parseStatement(): StatementNode {
         if (this.match(TokenType.KEYWORD, "if")) {
             return this.parseIfStmt();
@@ -223,7 +197,7 @@ export class Parser {
     private parseAssignmentStmt(): AssignmentStmtNode {
         const startToken = this.peek();
 
-        // Доступ к массиву: a[i] = v; или a[i][j] = v;
+        // a[i] = v; или a[i][j] = v;
         if (this.check(TokenType.IDENT) && this.lookahead(1, TokenType.OPERATOR, "[")) {
             return this.parseArrayAssignmentStmt(startToken);
         }
@@ -354,10 +328,7 @@ export class Parser {
         return { type: "AssumeStmt", predicate, position: pos };
     }
 
-    // ==========================================
     // 4. Logic, Predicates
-    // ==========================================
-
     private parseLogic(): LogicNode {
         return this.parseImplication();
     }
@@ -475,7 +446,7 @@ export class Parser {
 
         this.expect(TokenType.OPERATOR, "(");
         const varName = this.expect(TokenType.IDENT, undefined,
-             "Expected quantifier variable").value;
+            "Expected quantifier variable").value;
         this.expect(TokenType.OPERATOR, ":");
         const varType = this.parseVarType();
         this.expect(TokenType.OPERATOR, "|");
@@ -491,10 +462,7 @@ export class Parser {
         };
     }
 
-    // ==========================================
     // 5. Arithmetic Expressions
-    // ==========================================
-
     private parseExpr(): ExpressionNode {
         return this.parseAdditive();
     }
@@ -588,10 +556,7 @@ export class Parser {
         throw new ParseError(`Unexpected token in expression: '${token.value}'`, token.position);
     }
 
-    // ==========================================
     // 6. Helpers 
-    // ==========================================
-
     private check(type: TokenType, val?: string): boolean {
         if (this.isAtEnd()) {
             return false;
@@ -672,7 +637,8 @@ export class Parser {
     }
 
     private peek(): Token {
-        return this.tokens[this.current] || { type: TokenType.KEYWORD, value: "EOF", position: -1 };
+        return this.tokens[this.current]
+            || { type: TokenType.KEYWORD, value: "EOF", position: -1 };
     }
 
     private previous(): Token {
