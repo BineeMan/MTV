@@ -76,6 +76,7 @@ exports[`Parser - Positive Scenarios > 1.6 Эталонное сравнение
       "params": [
         {
           "name": "x",
+          "position": 17,
           "varType": "int",
         },
       ],
@@ -84,6 +85,7 @@ exports[`Parser - Positive Scenarios > 1.6 Эталонное сравнение
       "returns": [
         {
           "name": "r",
+          "position": 33,
           "varType": "int",
         },
       ],
