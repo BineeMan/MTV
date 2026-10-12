@@ -1,3 +1,4 @@
+import { lookup } from "node:dns";
 import { SemanticCheckError } from "../../../Errors/Errors.js";
 import type { AssignmentStmtNode, ExpressionNode, FunctionDeclNode, IfStmtNode, ModuleNode, StatementNode, VarType } from "../../../parser/src/Ast/AstNodes.js";
 import type { SemanticError } from "./SemanticError.js";
@@ -97,46 +98,37 @@ export class SemanticAnalyzer {
             throw new SemanticCheckError(`statement.targets.length == 0 for statement`, assignment.position)
         }
 
-        for (const target of assignment.targets) {
-            const targetSym = this.symbolTable.lookup(target)
-            if (targetSym === undefined) {
-                this.reportError(`Undeclared assignment target '${target}'`, assignment.position);
-                continue
-            }
-            if (targetSym.kind != 'Variable' && targetSym.kind != 'Parameter') {
-                this.reportError(`Can't use '${targetSym.kind}' for assignemnt`, assignment.position);
-            }
-        }
+        this.analyzeExpression(assignment.value);
 
-        if (assignment.value.type == 'FunctionCall') {
+        if (assignment.value.type === 'FunctionCall') {
             const funSym = this.symbolTable.lookup(assignment.value.name)
             if (funSym && funSym.kind === 'Function') {
-                if (funSym.node.returns.length == assignment.targets.length) {
-                    const length = funSym.node.returns.length
-                    for (let i = 0; i < length; i++) {
-                        const target = this.symbolTable.lookup(assignment.targets[i]!)
-                        if (target && (target.kind == 'Variable' || target.kind == 'Parameter')) {
-                            if (funSym.node.returns[i]!.varType !== target.node.varType) {
-                                this.reportError(
-                                    `Type mismatch for target '${target}': expected '${expectedType}', got '${targetSym.varType}'`,
-                                    assignment.position
-                                );
-                            }
+                const expectedReturns = funSym.node.returns
+                if (expectedReturns.length !== assignment.targets.length) {
+                    this.reportError(
+                        `Function '${funSym.name}' returns ${expectedReturns.length} value(s), but ${assignment.targets.length} target(s) were assigned`,
+                        assignment.position
+                    );
+                }
 
+                assignment.targets.forEach((target, index) => {
+                    const targetSym = this.symbolTable.lookup(target)
+                    const expectedType = funSym.node.returns[index]?.varType
+                    if (targetSym && (targetSym.kind === 'Parameter' || targetSym.kind === 'Variable')) {
+                        if (funSym && expectedType !== targetSym.node.varType) {
+                            this.reportError(
+                                `Type mismatch for target '${target}': expected '${expectedType}', got '${targetSym.varType}'`,
+                                assignment.position
+                            );
                         }
                     }
-                }
-                else {
-                    this.reportError(`Argument count assignment for function ${funSym.name} mismatch`, assignment.position);
-                }
+                })
             }
         }
-        else if (assignment.targets.length !== 1) {
-            this.reportError(`assignment.targets.length != 1 for ${assignment.value.type}`, assignment.position)
+        else {
+
         }
 
-
-        this.analyzeExpression(assignment.value);
     }
 
 

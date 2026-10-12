@@ -8,7 +8,6 @@ import { rulesFunny, asciiAlphabet, skipTokens } from "../../global/GlobalVars.j
 
 const lexer = new LexerEngine(rulesFunny, asciiAlphabet, skipTokens);
 
-// Хелпер для прогона исходника через Лексер + Парсер
 function parse(source: string) {
     const tokens = lexer.tokenize(source);
     const parser = new FunnyParser(tokens);
@@ -132,6 +131,14 @@ describe("Parser - Negative Scenarios & Edge Cases", () => {
         const code = `foo(x: int returns r: int { r = 1; }`;
         
         expect(() => parse(code)).toThrowError(ParseError);
+        // try {
+        //     parse(code)
+        // }
+        // catch (e) {
+        //     if (e instanceof Error) {
+        //         console.log(e.message)
+        //     }
+        // }
     });
 
     it("2.3 Незакрытая фигурная скобка в теле функции", () => {
