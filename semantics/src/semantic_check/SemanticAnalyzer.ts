@@ -1,6 +1,6 @@
 import { lookup } from "node:dns";
 import { SemanticCheckError } from "../../../Errors/Errors.js";
-import type { AssignmentStmtNode, ExpressionNode, FunctionDeclNode, IfStmtNode, ModuleNode, StatementNode, VarType } from "../../../parser/src/Ast/AstNodes.js";
+import type { AssignmentStmtNode, ExpressionNode, FunctionCallNode, FunctionDeclNode, IfStmtNode, ModuleNode, StatementNode, VarType } from "../../../parser/src/Ast/AstNodes.js";
 import type { SemanticError } from "./SemanticError.js";
 import { SymbolTable } from "./SymbolTable.js";
 import type { Symbol } from "./Symbols.js";
@@ -37,15 +37,15 @@ export class SemanticAnalyzer {
             if (varDef.varType === undefined) {
                 throw new SemanticCheckError(`varDef.varType === undefined for ${varDef.name}`, varDef.position)
             }
-            this.define({ name: varDef.name, kind: "Parameter", position: varDef.position, node: varDef })
+            this.define({ name: varDef.name, kind: "LocalVariable", position: varDef.position, node: varDef })
         }
 
         for (const varDef of fun.uses) {
-            this.define({ name: varDef.name, kind: "Variable", position: varDef.position, node: varDef })
+            this.define({ name: varDef.name, kind: "LocalVariable", position: varDef.position, node: varDef })
         }
 
         for (const varDef of fun.returns) {
-            this.define({ name: varDef.name, kind: "Variable", position: varDef.position, node: varDef })
+            this.define({ name: varDef.name, kind: "LocalVariable", position: varDef.position, node: varDef })
         }
 
         this.analyzeStatement(fun.body)
@@ -55,14 +55,6 @@ export class SemanticAnalyzer {
 
     private analyzeStatement(statement: StatementNode) {
         switch (statement.type) {
-            case "BlockStmt": {
-                this.symbolTable.enterScope()
-                for (const s of statement.statements) {
-                    this.analyzeStatement(s)
-                }
-                this.symbolTable.exitScope()
-                break
-            }
             case "AssignmentStmt": {
                 this.analyzeAssignment(statement)
                 break
@@ -106,35 +98,94 @@ export class SemanticAnalyzer {
                 const expectedReturns = funSym.node.returns
                 if (expectedReturns.length !== assignment.targets.length) {
                     this.reportError(
-                        `Function '${funSym.name}' returns ${expectedReturns.length} value(s), but ${assignment.targets.length} target(s) were assigned`,
+                        `Function '${funSym.name}' returns ${expectedReturns.length} 
+                        value(s), but ${assignment.targets.length} target(s) were assigned`,
                         assignment.position
                     );
                 }
+                else {
+                    const length = assignment.targets.length
 
-                assignment.targets.forEach((target, index) => {
-                    const targetSym = this.symbolTable.lookup(target)
-                    const expectedType = funSym.node.returns[index]?.varType
-                    if (targetSym && (targetSym.kind === 'Parameter' || targetSym.kind === 'Variable')) {
-                        if (funSym && expectedType !== targetSym.node.varType) {
-                            this.reportError(
-                                `Type mismatch for target '${target}': expected '${expectedType}', got '${targetSym.varType}'`,
-                                assignment.position
-                            );
+                    for (let i = 0; i < length; i++) {
+                        const targetSymbol = this.symbolTable.lookup(assignment.targets[i]!)
+                        const returnVarDef = funSym.node.returns[i]
+                        if (returnVarDef === undefined) {
+                            throw new SemanticCheckError("returnVarDef === undefined", assignment.position)
                         }
+
+                        if (targetSymbol === undefined) {
+                            this.reportError(`Assignement of an undeclared variable ${assignment.targets[i]}`,
+                                assignment.position)
+                            continue
+                        }
+
+                        if (targetSymbol.kind === 'LocalVariable' || targetSymbol.kind === 'Variable') {
+                            targetSymbol.node.inferredType =
+                                targetSymbol.node.inferredType || targetSymbol.node.varType || returnVarDef.varType
+
+                            if (targetSymbol.node.inferredType !== returnVarDef.varType) {
+                                this.reportError(`Type mismatch ${targetSymbol.node} of type ${targetSymbol.node.inferredType}. Expected ${returnVarDef.varType}`,
+                                    assignment.position)
+                            }
+                        }
+                        else {
+                            this.reportError(`Cannot assign to ${targetSymbol.name} of type ${targetSymbol.kind}`,
+                                assignment.position)
+                        }
+
+
                     }
-                })
+                }
             }
         }
         else {
+            if (assignment.targets.length !== 1) {
+                this.reportError(
+                    `Cannot assign a single expression of type '${assignment.value.type}' to multiple targets`,
+                    assignment.position
+                );
+            }
+            // Single assignment check
+            else {
+                const singleSymbol = this.symbolTable.lookup(assignment.targets[0]!)
+                if (singleSymbol === undefined) {
+                    this.reportError(`Undeclared symbol ${assignment.targets[0]!}`, assignment.position)
+                    return
+                }
 
+                if (singleSymbol.kind === 'LocalVariable' || singleSymbol.kind === 'Variable') {
+                    if (assignment.value.inferredType == undefined) {
+                        throw new SemanticCheckError("assignment.value.inferredType == undefined", assignment.position)
+                    }
+                    singleSymbol.node.inferredType =
+                        singleSymbol.node.inferredType || singleSymbol.node.varType || assignment.value.inferredType
+
+                    if (assignment.value.inferredType !== singleSymbol.node.inferredType) {
+                        this.reportError(
+                            `Type mismatch for target '${singleSymbol.name}': 
+                                expected '${singleSymbol.node.inferredType}', got '${assignment.value.inferredType}'`,
+                            assignment.position
+                        );
+                    }
+                }
+                else {
+                    this.reportError(`Cannot assign to ${singleSymbol.name} of type ${singleSymbol.kind}`,
+                        assignment.position)
+                }
+            }
         }
-
     }
 
 
     private checkAndReport(predicate: boolean, msg: string, position: number) {
         if (predicate) {
             this.reportError(msg, position);
+        }
+    }
+
+    private assert(predicate: boolean, msg: string, position: number) {
+        if (!predicate) {
+            throw new SemanticCheckError(msg, position)
         }
     }
 
@@ -147,20 +198,24 @@ export class SemanticAnalyzer {
                 const symbol = this.symbolTable.lookup(expr.name)
                 if (!symbol) {
                     this.reportError(`Undeclared variable '${expr.name}'`, expr.position);
-                    expr.inferredType = 'int'
                     break;
                 }
 
                 if (symbol.kind === 'Formula' || symbol.kind === 'Function') {
                     this.reportError(`Cannot use ${symbol.kind} '${expr.name}' as a variable`, expr.position);
-                    expr.inferredType = 'int';
                     break;
                 }
 
-                if (!symbol.varType) {
-                    throw new SemanticCheckError(`symbol ${symbol.name} does not have varType`, symbol.position)
+                if (symbol.kind === 'Variable') {
+                    expr.inferredType = symbol.node.varType
                 }
-                expr.inferredType = symbol.varType!
+                else if (symbol.kind === 'LocalVariable') {
+                    if (symbol.node.inferredType === undefined) {
+                        throw new SemanticCheckError(`LocalVariable ${symbol.name} does not have inferredType`, symbol.position)
+                    }
+                    expr.inferredType = symbol.node.inferredType
+                }
+
                 break
             }
             case "ArrayAccess": {

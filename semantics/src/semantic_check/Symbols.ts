@@ -1,8 +1,15 @@
 import type { FormulaDeclNode, FunctionDeclNode, LocalVarDef, VarDef as VarDefNode, VarType } from "../../../parser/src/Ast/AstNodes.js";
 
-export interface VarSymbol {
-    kind: "Variable" | "Parameter";
-    node: VarDefNode | LocalVarDef;
+export interface LocalVarSymbol {
+    kind: "LocalVariable";
+    node: LocalVarDef;
+    name: string;
+    position: number;
+}
+
+export interface VariableSymbol {
+    kind: "Variable";
+    node: VarDefNode;
     name: string;
     position: number;
 }
@@ -21,4 +28,4 @@ export interface FormulaSymbol {
     position: number;
 }
 
-export type Symbol = VarSymbol | FunctionSymbol | FormulaSymbol;
+export type Symbol = LocalVarSymbol | FunctionSymbol | FormulaSymbol | VariableSymbol;
