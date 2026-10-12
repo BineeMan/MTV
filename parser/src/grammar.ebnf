@@ -1,0 +1,125 @@
+1. Program & Top-Level Declarations
+
+
+Module           ::= { Declaration } ;
+Declaration      ::= FunctionDecl | FormulaDecl ;
+FunctionDecl     ::= IDENT "(" [ VarDefList ] ")" 
+                     [ "requires" LogicExpr ]
+                     "returns" VarDefList 
+                     [ "ensures" LogicExpr ]
+                     [ "uses" LocalVarDefList ]
+                     Statement ;
+
+FormulaDecl ::= IDENT "(" [ VarDefList ] ")" "=>" LogicExpr ;
+
+
+
+2. Variable Definitions & Types
+
+
+VarDefList       ::= VarDef { "," VarDef } ;
+
+VarDef           ::= IDENT ":" VarType ;
+
+LocalVarDefList  ::= LocalVarDef { "," LocalVarDef } ;
+
+LocalVarDef      ::= IDENT [ ":" VarType ] ;
+
+VarType          ::= "int" [ "[" "]" ] ;
+
+
+
+3. Statements
+
+
+Statement        ::= AssignmentStmt
+                   | IfStmt
+                   | WhileStmt
+                   | BlockStmt
+                   | AssertStmt
+                   | AssumeStmt ;
+
+AssignmentStmt   ::= TargetList "=" Expr ";" ;
+
+TargetList       ::= ArrayTarget | IdentList ;
+
+IdentList        ::= IDENT { "," IDENT } ;
+
+ArrayTarget      ::= IDENT "[" Expr "]" { "[" Expr "]" } ;
+
+IfStmt           ::= "if" "(" LogicExpr ")" Statement [ "else" Statement ] ;
+
+WhileStmt        ::= "while" "(" LogicExpr ")" [ "invariant" LogicExpr ] Statement ;
+
+BlockStmt        ::= "{" { Statement } "}" ;
+
+AssertStmt       ::= "assert" LogicExpr ";" ;
+
+AssumeStmt       ::= "assume" LogicExpr ";" ;
+
+
+
+   4. Logic & Predicates (Formulas / Contracts)
+
+
+LogicExpr        ::= ImplicationExpr ;
+
+ImplicationExpr  ::= OrExpr [ "->" ImplicationExpr ] ;   (* Right-associative *)
+
+OrExpr           ::= AndExpr { "or" AndExpr } ;          (* Left-associative *)
+
+AndExpr          ::= NotExpr { "and" NotExpr } ;         (* Left-associative *)
+
+NotExpr          ::= "not" NotExpr | PrimaryLogic ;
+
+PrimaryLogic     ::= "true"
+                   | "false"
+                   | QuantifierExpr
+                   | "(" LogicExpr ")"
+                   | Expr ComparisonOp Expr
+                   | FunctionCall ;
+
+QuantifierExpr   ::= Quantifier "(" IDENT ":" VarType "|" LogicExpr ")" ;
+
+Quantifier       ::= "forall" | "exists" ;
+
+ComparisonOp     ::= "==" | "!=" | "<=" | ">=" | "<" | ">" ;
+
+
+
+   5. Arithmetic Expressions
+
+
+Expr             ::= AdditiveExpr ;
+
+AdditiveExpr     ::= MultiplicativeExpr { ( "+" | "-" ) MultiplicativeExpr } ;
+
+MultiplicativeExpr ::= UnaryExpr { ( "*" | "/" ) UnaryExpr } ;
+
+UnaryExpr        ::= "-" UnaryExpr | PrimaryExpr ;
+
+PrimaryExpr      ::= INT
+                   | FunctionCall
+                   | ArrayAccess
+                   | IDENT
+                   | "(" Expr ")" ;
+
+FunctionCall     ::= IDENT "(" [ Expr { "," Expr } ] ")" ;
+
+ArrayAccess      ::= IDENT "[" Expr "]" { "[" Expr "]" } ;
+
+
+
+   6. Lexical Tokens (Terminals)
+
+
+IDENT            ::= [A-Za-z_][A-Za-z0-9_]* ;
+INT              ::= "0" | [1-9][0-9]* ;
+KEYWORD          ::= "function" | "returns" | "requires" | "ensures" 
+                   | "uses" | "while" | "if" | "else" | "true" | "false" 
+                   | "assert" | "assume" | "invariant" | "forall" | "exists" | "int" ;
+OPERATOR         ::= "==" | "!=" | "<=" | ">=" | "=>" | "->" | "not" | "and" | "or"
+                   | "<" | ">" | "=" | "," | ";" | ":" | "+" | "-" | "*" | "/"
+                   | "(" | ")" | "[" | "]" | "{" | "}" | "|" ;
+COMMENT          ::= "//" [^\n]* ;
+WS               ::= [ \t\r\n]+ ;
