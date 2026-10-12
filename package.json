@@ -5,6 +5,7 @@
   "scripts": {
     "lexer": "tsx lexer/src/index.ts",
     "parser": "tsx parser/src/index.ts",
+    "semantics": "tsx semantics/src/index.ts",
     "build": "tsc",
     "check": "tsc --noEmit",
     "lint": "eslint .",
@@ -13,7 +14,7 @@
     "test_parser": "vitest run parser"
   },
   "devDependencies": {
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.5",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"

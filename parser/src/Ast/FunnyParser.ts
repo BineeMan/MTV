@@ -1,8 +1,8 @@
 import type { Token } from "../../../lexer/src/Types/Token.js";
 import { TokenType } from "../../../lexer/src/Types/TokenType.js";
-import { ParseError } from "../Errors/Errors.js";
+import { ParseError } from "../../../Errors/Errors.js";
 import type {
-    Position,
+    BaseNode,
     VarType,
     VarDef,
     LocalVarDef,
@@ -139,10 +139,11 @@ export class FunnyParser {
     }
 
     private parseVarDef(): VarDef {
+        const pos = this.peek().position
         const name = this.expect(TokenType.IDENT, undefined, "Expected var name");
         this.expect(TokenType.OPERATOR, ":");
         const varType: VarType = this.parseVarType();
-        return { name: name.value, varType };
+        return { name: name.value, varType: varType, position: pos };
     }
 
     private parseLocalVarDefList(): LocalVarDef[] {
@@ -154,14 +155,17 @@ export class FunnyParser {
     }
 
     private parseLocalVarDef(): LocalVarDef {
+        const pos = this.peek().position
         const name = this.expect(TokenType.IDENT, undefined, "Expected local var name").value;
         let varType: VarType | undefined;
 
         if (this.match(TokenType.OPERATOR, ":")) {
             varType = this.parseVarType();
         }
-
-        return { name, varType };
+        if (varType) {
+            return { name: name, varType: varType, position: pos };
+        }
+        return { name: name, position: pos };
     }
 
     private parseVarType(): VarType {
@@ -283,7 +287,11 @@ export class FunnyParser {
             elseBranch = this.parseStatement();
         }
 
-        return { type: "IfStmt", condition, thenBranch, elseBranch, position: pos };
+        if (elseBranch) {
+            return { type: "IfStmt", condition, thenBranch, elseBranch, position: pos };
+        }
+
+        return { type: "IfStmt", condition, thenBranch, position: pos };
     }
 
     private parseWhileStmt(): WhileStmtNode {
@@ -298,8 +306,10 @@ export class FunnyParser {
         }
 
         const body = this.parseStatement();
-
-        return { type: "WhileStmt", condition, invariant, body, position: pos };
+        if (invariant) {
+            return { type: "WhileStmt", condition, invariant, body, position: pos };
+        }
+        return { type: "WhileStmt", condition, body, position: pos };
     }
 
     private parseBlockStmt(): BlockStmtNode {
@@ -441,10 +451,12 @@ export class FunnyParser {
     }
 
     private parseQuantifier(): LogicNode {
+        
         const token = this.advance();
         const quantifier = token.value as "forall" | "exists";
 
         this.expect(TokenType.OPERATOR, "(");
+        const pos = this.peek().position
         const varName = this.expect(TokenType.IDENT, undefined,
             "Expected quantifier variable").value;
         this.expect(TokenType.OPERATOR, ":");
@@ -456,7 +468,7 @@ export class FunnyParser {
         return {
             type: "Quantifier",
             quantifier,
-            variable: { name: varName, varType },
+            variable: { name: varName, varType: varType, position: pos },
             predicate,
             position: token.position,
         };

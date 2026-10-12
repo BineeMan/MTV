@@ -3,40 +3,19 @@ import { describe, it, expect } from "vitest";
 import { LexerEngine } from "../../lexer/src/LexerEngine.js";
 import { FunnyParser, type AssignmentStmtNode, type FunctionCallNode } from "../src/Ast/FunnyParser.js";
 import { TokenType } from "../../lexer/src/Types/TokenType.js";
-import { ParseError } from "../src/Errors/Errors.js";
+import { ParseError } from "../../Errors/Errors.js";
+import { rulesFunny, asciiAlphabet, skipTokens } from "../../global/GlobalVars.js";
 
-const asciiAlphabet = Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i))
-    .concat(["\t", "\r", "\n"]);
+const lexer = new LexerEngine(rulesFunny, asciiAlphabet, skipTokens);
 
-const rules = new Map<TokenType, string>([
-    [
-        TokenType.KEYWORD,
-        "function|returns|requires|ensures|uses|while|if|else|true|false|assert|assume|invariant|forall|exists|int"
-    ],
-    [
-        TokenType.OPERATOR,
-        "==|!=|<=|>=|=>|->|not|and|or|<|>|=|,|;|:|\\+|\\-|\\*|/|\\(|\\)|\\[|\\]|\\{|\\}|\\|"
-    ],
-    [TokenType.IDENT, "[A-Za-z_][A-Za-z0-9_]*"],
-    [TokenType.INT, "0|[1-9][0-9]*"],
-    [TokenType.COMMENT, "//[^\n]*"],
-    [TokenType.WS, "[ \t\r\n]+"]
-]);
-
-const skipTokens = new Set([TokenType.COMMENT, TokenType.WS]);
-const lexer = new LexerEngine(rules, asciiAlphabet, skipTokens);
-
-// Хелпер для прогона исходника через Лексер + Парсер
 function parse(source: string) {
     const tokens = lexer.tokenize(source);
     const parser = new FunnyParser(tokens);
     return parser.parse();
 }
 
-
 // 1. ПОЗИТИВНЫЕ ТЕСТЫ
 describe("Parser - Positive Scenarios", () => {
-
     it("1.1 Минимальная корректная функция без параметров", () => {
         const code = `main() returns r: int { r = 0; }`;
         const ast = parse(code);
@@ -44,7 +23,7 @@ describe("Parser - Positive Scenarios", () => {
         expect(ast.functions).toHaveLength(1);
         expect(ast.functions[0]!.name).toBe("main");
         expect(ast.functions[0]!.params).toEqual([]);
-        expect(ast.functions[0]!.returns).toEqual([{ name: "r", varType: "int" }]);
+        expect(ast.functions[0]!.returns).toEqual([{ name: "r", varType: "int", position: 15 }]);
     });
 
     it("1.2 Функция с контрактами (requires, ensures), локальными переменными и циклом с инвариантом", () => {
@@ -152,6 +131,14 @@ describe("Parser - Negative Scenarios & Edge Cases", () => {
         const code = `foo(x: int returns r: int { r = 1; }`;
         
         expect(() => parse(code)).toThrowError(ParseError);
+        // try {
+        //     parse(code)
+        // }
+        // catch (e) {
+        //     if (e instanceof Error) {
+        //         console.log(e.message)
+        //     }
+        // }
     });
 
     it("2.3 Незакрытая фигурная скобка в теле функции", () => {
