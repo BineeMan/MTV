@@ -1,7 +1,7 @@
 import type { Symbol } from "./Symbols.js";
 
 export class SymbolTable {
-    private scopes: Map<string, Symbol>[] = [new Map()]
+    private scopes: Map<string, Symbol>[] = []
 
     public enterScope() {
         this.scopes.push(new Map())
@@ -9,8 +9,12 @@ export class SymbolTable {
 
     public exitScope() {
         if (this.scopes.length > 1) {
-            this.scopes.pop
+            this.scopes.pop()
         }
+    }
+
+    public clear() {
+        this.scopes.length = 0
     }
 
     public define(symbol: Symbol) : boolean {
@@ -34,5 +38,15 @@ export class SymbolTable {
             }
         }
         return undefined
+    }
+
+    public doesExist(name: string) {
+        for (let i = this.scopes.length - 1; i >= 0; i--) {
+            const sym = this.scopes[i]?.get(name)
+            if (sym) {
+                return true
+            }
+        }
+        return false
     }
 }

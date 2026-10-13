@@ -1,7 +1,9 @@
 export interface BaseNode {
     position: number;
-    inferredType?: VarType;
+    inferredType?: InferredType;
 }
+
+export type InferredType = VarType | 'boolean' | 'unknown'
 
 export type VarType = 'int' | 'int[]';
 
@@ -126,7 +128,7 @@ export interface IfStmtNode extends BaseNode {
 export interface WhileStmtNode extends BaseNode {
     type: "WhileStmt";
     condition: LogicNode;
-    invariant?: LogicNode | undefined;
+    invariant?: LogicNode;
     body: StatementNode;
 }
 
