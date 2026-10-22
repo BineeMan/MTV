@@ -1,5 +1,5 @@
 import { SemanticCheckError } from "../../../Errors/Errors.js";
-import type { AssignmentStmtNode, ExpressionNode, FunctionCallNode, FunctionDeclNode, IfStmtNode, LogicNode, ModuleNode, StatementNode, VarType } from "../../../parser/src/Ast/AstNodes.js";
+import type { AssignmentStmtNode, ExpressionNode, FormulaRefNode, FunctionCallNode, FunctionDeclNode, IfStmtNode, LogicNode, ModuleNode, StatementNode, VarType } from "../../../parser/src/Ast/AstNodes.js";
 import type { SemanticError } from "./SemanticError.js";
 import { SymbolTable } from "./SymbolTable.js";
 import type { Symbol } from "./Symbols.js";
@@ -196,10 +196,39 @@ export class SemanticAnalyzer {
                 break
             }
             case 'FormulaRef': {
-                TODO
+                const formulaSym = this.symbolTable.lookup(logicNode.name)
+                if (!formulaSym) {
+                    this.reportError(`Use of undeclared formula: ${logicNode.name}`, logicNode.position);
+                    logicNode.inferredType = 'unknown'
+                    break
+                }
+                if (formulaSym.kind !== 'Formula') {
+                    this.reportError(`Cannot use ${formulaSym.kind} as formula for ${formulaSym.name}`, logicNode.position)
+                    logicNode.inferredType = 'unknown'
+                    break
+                }
+
+                if (formulaSym.node.params.length !== logicNode.args.length) {
+                    this.reportError(`Args length mismatch for ${logicNode.name}`, logicNode.position)
+                    logicNode.inferredType = 'unknown'
+                    break
+                }
+                
+                logicNode.inferredType = 'boolean'
+                for (let i = 0; i < logicNode.args.length; i++) {
+                    this.analyzeExpression(logicNode.args[i]!)
+
+                    if (logicNode.args[i]!.inferredType !== formulaSym.node.params[i]!.varType) {
+                        this.reportError(`Argument ${i} type mismatch for ${logicNode.args[i]!.position}`,
+                            logicNode.position)
+                        logicNode.inferredType = 'unknown'
+                    }
+                }
+                break
             }
         }
     }
+
 
     private analyzeAssignment(assignment: AssignmentStmtNode) {
         if (assignment.targets.length == 0) {
