@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "test": "vitest",
     "test_lexer": "vitest run lexer",
-    "test_parser": "vitest run parser"
+    "test_parser": "vitest run parser",
+    "test_semantics": "vitest run semantics"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

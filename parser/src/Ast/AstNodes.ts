@@ -8,6 +8,7 @@ export type InferredType = VarType | 'boolean' | 'unknown'
 export type VarType = 'int' | 'int[]';
 
 export interface VarDef extends BaseNode {
+    type: 'VarDef'
     name: string;
     varType: VarType;
 }
