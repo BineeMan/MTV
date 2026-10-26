@@ -5,12 +5,8 @@ import { LexerEngine } from '../../lexer/src/LexerEngine.js';
 import { FunnyParser } from '../../parser/src/Ast/FunnyParser.js';
 import { SemanticAnalyzer } from '../src/semantic_check/SemanticAnalyzer.js';
 
-// Инициализация лексера по вашей конфигурации
 const lexer = new LexerEngine(rulesFunny, asciiAlphabet, skipTokens);
 
-/**
- * Вспомогательная функция прогона исходного кода через Lexer -> Parser -> SemanticAnalyzer
- */
 function analyze(source: string) {
     const tokens = lexer.tokenize(source);
     const parser = new FunnyParser(tokens);

@@ -109,7 +109,6 @@ export class SemanticAnalyzer {
     private analyzeFunction(fun: FunctionDeclNode) {
         this.symbolTable.enterScope();
 
-        // Параметры (Read-Only)
         for (const varDef of fun.params) {
             if (!varDef.varType) {
                 this.reportError(`Parameter '${varDef.name}' must have an explicit type`, varDef.position);
@@ -122,7 +121,6 @@ export class SemanticAnalyzer {
             });
         }
 
-        // Переменные возврата (Read-Write)
         for (const varDef of fun.returns) {
             if (!varDef.varType) {
                 this.reportError(`Return variable '${varDef.name}' must have an explicit type`, varDef.position);
@@ -135,7 +133,6 @@ export class SemanticAnalyzer {
             });
         }
 
-        // Локальные переменные (uses) — тип может выводиться
         for (const varDef of fun.uses) {
             this.define({
                 name: varDef.name,
@@ -145,7 +142,6 @@ export class SemanticAnalyzer {
             });
         }
 
-        // Анализ requires (доступны только параметры)
         if (fun.requires) {
             this.analyzeLogicNode(fun.requires);
             if (fun.requires.inferredType !== 'boolean' && fun.requires.inferredType !== 'unknown') {
@@ -153,7 +149,6 @@ export class SemanticAnalyzer {
             }
         }
 
-        // Анализ ensures (доступны параметры и возвращаемые значения)
         if (fun.ensures) {
             this.analyzeLogicNode(fun.ensures);
             if (fun.ensures.inferredType !== 'boolean' && fun.ensures.inferredType !== 'unknown') {
@@ -161,7 +156,6 @@ export class SemanticAnalyzer {
             }
         }
 
-        // Тело функции
         this.analyzeStatement(fun.body);
 
         this.symbolTable.exitScope();
@@ -232,7 +226,7 @@ export class SemanticAnalyzer {
             return;
         }
 
-        // 1. Случай вызова функции в правой части (кортежное присваивание)
+        // 1. Случай вызова функции в правой части
         if (assignment.value.type === 'FunctionCall') {
             const funcCall = assignment.value;
             this.analyzeFunctionCall(funcCall);
@@ -293,7 +287,7 @@ export class SemanticAnalyzer {
 
         const currentType = symbol.node.inferredType || symbol.node.varType;
 
-        if (!currentType) {
+        if (currentType === undefined) {
             // Вывод типа для локальной переменной при первом корректном присваивании
             symbol.node.inferredType = valueType;
         } else if (currentType !== valueType) {
