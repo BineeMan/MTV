@@ -25,7 +25,7 @@ export class SemanticAnalyzer {
 
         this.registerBuiltins();
 
-        // 1. Пасс 1: Регистрация всех функций и формул в глобальной области
+        // 1. Проход 1: Регистрация всех функций и формул в глобальной области
         for (const fun of module.functions) {
             if (this.symbolTable.doesExist(fun.name)) {
                 this.reportError(`Redefinition of symbol '${fun.name}'`, fun.position);
@@ -52,12 +52,12 @@ export class SemanticAnalyzer {
             });
         }
 
-        // 2. Пасс 2: Анализ формул
+        // 2. Анализ формул
         for (const formula of module.formulas) {
             this.analyzeFormula(formula);
         }
 
-        // 3. Пасс 3: Анализ функций
+        // 3. Анализ функций
         for (const fun of module.functions) {
             this.analyzeFunction(fun);
         }
@@ -391,7 +391,7 @@ export class SemanticAnalyzer {
 
     private analyzeFunctionCall(call: FunctionCallNode) {
         const funSym = this.symbolTable.lookup(call.name);
-        if (!funSym) {
+        if (funSym === undefined) {
             this.reportError(`Use of undeclared function '${call.name}'`, call.position);
             return;
         }

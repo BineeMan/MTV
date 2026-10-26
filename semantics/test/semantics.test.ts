@@ -37,6 +37,7 @@ describe('SemanticAnalyzer (HW3 - Funny Language)', () => {
             const fn = ast.functions[0]!;
             if (fn.body.type === 'BlockStmt') {
                 const stmt1 = fn.body.statements[0]!;
+                //console.log(stmt1)
                 if (stmt1.type === 'AssignmentStmt') {
                     expect(stmt1.value.inferredType).toBe('int');
                 }
@@ -163,7 +164,7 @@ describe('SemanticAnalyzer (HW3 - Funny Language)', () => {
                 }
             `;
             const { errors } = analyze(code);
-
+            //console.log(errors)
             expect(errors).toHaveLength(1);
             expect(errors[0]?.message).toContain("expects 2 argument(s), but got 1");
         });
@@ -227,7 +228,7 @@ describe('SemanticAnalyzer (HW3 - Funny Language)', () => {
                 }
             `;
             const { errors } = analyze(code);
-
+            //console.log(errors)
             expect(errors).toHaveLength(1);
             expect(errors[0]?.message).toContain("Type mismatch for target 'temp': expected 'int', got 'int[]'");
         });
@@ -243,7 +244,7 @@ describe('SemanticAnalyzer (HW3 - Funny Language)', () => {
                 }
             `;
             const { errors } = analyze(code);
-
+            //console.log(errors)
             expect(errors.length).toBeGreaterThanOrEqual(2);
         });
 
